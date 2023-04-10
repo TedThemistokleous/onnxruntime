@@ -136,6 +136,8 @@ def get_ort_pipeline(model_name: str, directory: str, provider: str, disable_saf
     if directory is not None:
         assert os.path.exists(directory)
         session_options = onnxruntime.SessionOptions()
+        session_options.log_verbosity_level = 0
+        session_options.log_severity_level = 0
         pipe = OnnxStableDiffusionPipeline.from_pretrained(
             directory,
             provider=provider,
