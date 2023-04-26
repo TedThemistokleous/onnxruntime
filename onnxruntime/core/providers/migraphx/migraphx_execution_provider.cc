@@ -40,7 +40,7 @@ class Memcpy final : public OpKernel {
   Memcpy(const OpKernelInfo& info) : OpKernel(info) {}
 
   Status Compute(OpKernelContext* ctx) const override {
-    LOGS_DEFAULT(FATAL) << "MIGRAPHX COMPUTE";
+     //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX COMPUTE";
     const auto* X = ctx->Input<Tensor>(0);
     ORT_ENFORCE(X != nullptr, "Memcpy: Input tensor is nullptr.");
     Tensor* Y = ctx->Output(0, X->Shape());
@@ -81,7 +81,7 @@ class ONNX_OPERATOR_KERNEL_CLASS_NAME(kMIGraphXExecutionProvider, kOnnxDomain, 1
 static std::shared_ptr<KernelRegistry> s_kernel_registry;
 
 void InitializeRegistry() {
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX INITIALIZEREGISTRY";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX INITIALIZEREGISTRY";
   s_kernel_registry = KernelRegistry::Create();
 
   static const BuildKernelCreateInfoFn function_table[] = {
@@ -95,18 +95,18 @@ void InitializeRegistry() {
 }
 
 void DeleteRegistry() {
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX DELETEREGISTRY";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX DELETEREGISTRY";
   s_kernel_registry.reset();
 }
 
 std::shared_ptr<KernelRegistry> MIGraphXExecutionProvider::GetKernelRegistry() const {
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX GETKERNELREGISTRY";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX GETKERNELREGISTRY";
   return s_kernel_registry;
 }
 
 MIGraphXExecutionProvider::MIGraphXExecutionProvider(const MIGraphXExecutionProviderInfo& info)
     : IExecutionProvider{onnxruntime::kMIGraphXExecutionProvider, true}, device_id_(info.device_id) {
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX CONSTRUCTOR";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX CONSTRUCTOR";
   InitProviderOrtApi();
   // Set GPU device to be used
   HIP_CALL_THROW(hipSetDevice(device_id_));
@@ -137,7 +137,7 @@ MIGraphXExecutionProvider::~MIGraphXExecutionProvider() {
 }
 
 AllocatorPtr MIGraphXExecutionProvider::GetAllocator(OrtMemType mem_type) const {
-  //LOGS_DEFAULT(FATAL) << "MIGRAPHX GETALLOCATOR";
+  // //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX GETALLOCATOR";
   if (mem_type == OrtMemTypeDefault) {
     return allocator_;
   } else {
@@ -146,7 +146,7 @@ AllocatorPtr MIGraphXExecutionProvider::GetAllocator(OrtMemType mem_type) const 
 }
 
 void MIGraphXExecutionProvider::RegisterAllocator(AllocatorManager& allocator_manager) {
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX REGISTERALLOCATOR";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX REGISTERALLOCATOR";
   OrtDevice::DeviceId short_device_id = gsl::narrow<OrtDevice::DeviceId>(device_id_);
   OrtDevice gpu_device{OrtDevice::GPU, OrtDevice::MemType::DEFAULT, short_device_id};
   OrtDevice pinned_device{OrtDevice::CPU, OrtDevice::MemType::CUDA_PINNED, DEFAULT_CPU_ALLOCATOR_DEVICE_ID};
@@ -215,12 +215,12 @@ void MIGraphXExecutionProvider::RegisterAllocator(AllocatorManager& allocator_ma
 }
 
 std::unique_ptr<onnxruntime::IDataTransfer> MIGraphXExecutionProvider::GetDataTransfer() const {
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX GETDATATRANSFER";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX GETDATATRANSFER";
   return std::make_unique<onnxruntime::GPUDataTransfer>();
 }
 
 static bool IsTypeSupported(const NodeArg* node_arg) {
-  //LOGS_DEFAULT(FATAL) << "MIGRAPHX ISTYPESUPPORTED";
+  // //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX ISTYPESUPPORTED";
   const auto* type_proto = node_arg->TypeAsProto();
   if (!type_proto) {
     return false;
@@ -248,7 +248,7 @@ static bool IsTypeSupported(const NodeArg* node_arg) {
 static bool getMIGraphXType(ONNXTensorElementDataType type,
                             migraphx_shape_datatype_t& mgx_type) {
 
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX GETMIGRAPHXTYPE";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX GETMIGRAPHXTYPE";
   mgx_type = migraphx_shape_float_type;
   switch (type) {
     case ONNX_NAMESPACE::TensorProto_DataType::TensorProto_DataType_FLOAT16:
@@ -298,7 +298,7 @@ static bool getMIGraphXType(ONNXTensorElementDataType type,
 
 std::vector<int> toVector(const ONNX_NAMESPACE::int64s& nums) {
 
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX TOVECTOR";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX TOVECTOR";
   std::vector<int> result;
   int num = nums.size();
   for (int i = 0; i < num; ++i) {
@@ -309,7 +309,7 @@ std::vector<int> toVector(const ONNX_NAMESPACE::int64s& nums) {
 }
 
 static bool IsUnsupportedOpMode(const onnxruntime::GraphViewer& graph_viewer, const Node* node) {
-  //LOGS_DEFAULT(FATAL) << "MIGRAPHX ISUNSUPPORTEDOPNODE";
+  // //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX ISUNSUPPORTEDOPNODE";
   std::vector<NodeIndex> input_nodes;
   const auto& optype = node->OpType();
   if (optype == "ArgMax" or optype == "ArgMin") {
@@ -453,6 +453,7 @@ static bool IsUnsupportedOpMode(const onnxruntime::GraphViewer& graph_viewer, co
     if (ct_attr != attributes.end()) {
       auto ct = (*ct_attr).second.s();
       if (ct == "tf_crop_and_resize") {
+        LOGS_DEFAULT(FATAL) << "Resize invalid coord transform";
         return true;
       }
     }
@@ -461,19 +462,21 @@ static bool IsUnsupportedOpMode(const onnxruntime::GraphViewer& graph_viewer, co
     if (mode_attr != attributes.end()) {
       auto mode = (*mode_attr).second.s();
       if (mode == "cubic") {
+        LOGS_DEFAULT(FATAL) << "Resize invalid mode";
         return true;
       }
     }
 
-    const auto& args = node->InputDefs();
+    /*const auto& args = node->InputDefs();
     if (args.size() > 1) {
       std::vector<std::size_t> indices(args.size() - 1);
-      std::iota(indices.begin(), indices.end(), 1);
+      std::iota(indices.begin(), indices.end(), 0);
       if (canEvalNodeArgument(graph_viewer, node, indices, input_nodes)) {
         return false;
       }
+      LOGS_DEFAULT(FATAL) << "Resize invalid inputs";
       return true;
-    }
+    } */
   } else if (optype == "ReduceSum") {
     const auto& args = node->InputDefs();
     if (args.size() == 2) {
@@ -556,7 +559,7 @@ static bool IsUnsupportedOpMode(const onnxruntime::GraphViewer& graph_viewer, co
 
 void SubgraphPostProcessing(const onnxruntime::GraphViewer& graph_viewer, std::vector<std::vector<NodeIndex>>& clusters, const logging::Logger& logger) {
 
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX SUBGRAPHPOSTPROCESSING";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX SUBGRAPHPOSTPROCESSING";
 
   // Then check whether a subgraph should fallback to CPU
   // 1. Check whether a subgraph contains a RNN operator
@@ -636,7 +639,7 @@ static bool IsNodeSupported(const std::set<std::string>& op_set,
                             const NodeIndex node_idx,
                             const logging::Logger& logger) {
 
-  //LOGS_DEFAULT(FATAL) << "MIGRAPHX ISNODESUPPORTED";
+  // //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX ISNODESUPPORTED";
   const auto& node = graph_viewer.GetNode(node_idx);
   const auto& optype = node->OpType();
   const auto& domain = node->Domain();
@@ -674,7 +677,7 @@ static bool IsNodeSupported(const std::set<std::string>& op_set,
 }
 
 std::unique_ptr<IndexedSubGraph> MIGraphXExecutionProvider::GetSubGraph(const std::vector<std::size_t>& graph_nodes_index, const GraphViewer& graph) const {
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX GETSUBGRAPH";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX GETSUBGRAPH";
   std::unordered_set<size_t> node_set;
   node_set.reserve(graph_nodes_index.size());
   for (const auto& index : graph_nodes_index) {
@@ -827,7 +830,7 @@ GetUnsupportedNodeIndices(const GraphViewer& graph_viewer,
                           /*out*/ std::unordered_set<std::string>& mgx_required_initializers,
                           const logging::Logger& logger) {
 
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX GETSUPPORTEDNODEINDICES";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX GETSUPPORTEDNODEINDICES";
   static std::set<std::string> mgx_supported_ops = {"Abs", "Acos", "Acosh", "Add", "And",
                                                     "ArgMax", "ArgMin", "Asin", "Asinh", "Atan", "Atanh", "ATen", "AveragePool",
                                                     "BatchNormalization", "Cast", "Ceil", "Celu", "Clip", "Concat", "Constant", "ConstantFill",
@@ -866,7 +869,7 @@ GetUnsupportedNodeIndices(const GraphViewer& graph_viewer,
 // This functions returns vector of all supported_subgraphx by amdmigraphx
 static std::vector<std::vector<NodeIndex>>
 GetPartitionedSubgraphs(const std::vector<NodeIndex>& topological_order, const std::vector<NodeIndex>& unsupported_nodes) {
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX GETPARTITIONEDSUBGRAPHS";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX GETPARTITIONEDSUBGRAPHS";
   std::vector<std::vector<NodeIndex>> mgx_subgraphx;
 
   auto prev = topological_order.begin();
@@ -896,7 +899,7 @@ std::vector<std::unique_ptr<ComputeCapability>>
 MIGraphXExecutionProvider::GetCapability(const onnxruntime::GraphViewer& graph_viewer,
                                          const IKernelLookup& /*kernel_lookup*/) const {
 
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX GETCAPABILITY";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX GETCAPABILITY";
   std::vector<std::unique_ptr<ComputeCapability>> result;
   auto model = graph_viewer.CreateModel(*GetLogger());
   auto model_proto = model->ToProto();
@@ -963,11 +966,11 @@ bool get_input_output_names(const GraphViewer& graph,
                             std::vector<std::string>& input_names,
                             std::vector<std::string>& output_names) {
 
-  //LOGS_DEFAULT(FATAL) << "MIGRAPHX GET INPUT_OUTPUT_NAMES";
+  // //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX GET INPUT_OUTPUT_NAMES";
   input_names.clear();
   output_names.clear();
   const auto& input_args = graph.GetInputs();
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX INPUT_OUTPUT_NAMES 2";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX INPUT_OUTPUT_NAMES 2";
   std::transform(input_args.begin(), input_args.end(), std::back_inserter(input_names), [](auto& arg) {
     return arg->Name();
   });
@@ -977,16 +980,19 @@ bool get_input_output_names(const GraphViewer& graph,
       return true;
 
     auto sptr = arg->Shape();
-    LOGS_DEFAULT(FATAL) << "MIGRAPHX INPUT_OUTPUT_shape";
+     //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX INPUT_OUTPUT_shape";
     if (sptr == nullptr)
       return true;
 
     auto dim_size = sptr->dim_size();
 
-    LOGS_DEFAULT(FATAL) << "MIGRAPHX before DIM_SIZE check";
-    return (dim_size == 0);
-    LOGS_DEFAULT(FATAL) << dim_size;
-    LOGS_DEFAULT(FATAL) << "MIGRAPHX DONE INPUT_OUTPUT_NAMES";
+     //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX before DIM_SIZE check";
+    if(dim_size == 0)
+      return true;
+
+     //LOGS_DEFAULT\(FATAL\) << dim_size;
+     //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX DONE INPUT_OUTPUT_NAMES";
+    return false;
   });
 
   const auto& out_args = graph.GetOutputs();
@@ -1008,7 +1014,7 @@ bool get_input_output_names(const GraphViewer& graph,
 Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& fused_nodes,
                                           std::vector<NodeComputeInfo>& node_compute_funcs) {
 
-  LOGS_DEFAULT(FATAL) << "MIGRAPHX COMPILE";
+   //LOGS_DEFAULT\(FATAL\) << "MIGRAPHX COMPILE";
   migraphx::onnx_options options;
   bool no_input_shape = false;
   for (const auto& fused_node_graph : fused_nodes) {
@@ -1037,31 +1043,32 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
     }
 
     std::vector<std::string> input_names, output_names;
-    no_input_shape = no_input_shape or get_input_output_names(graph_body_viewer, input_names, output_names);
+    no_input_shape = true; //get_input_output_names(graph_body_viewer, input_names, output_names);
 
     // by parsing the model_proto, create a program corresponding to
     // the input fused_node
     migraphx::program prog;
 
-    LOGS_DEFAULT(FATAL) << "Before No Input Shape: " << no_input_shape;
+     //LOGS_DEFAULT\(FATAL\) << "Before No Input Shape: " << no_input_shape;
 
-    if (!no_input_shape) {
+    /*if (!no_input_shape) {
       prog = migraphx::parse_onnx_buffer(onnx_string_buffer, options);
 
-      LOGS_DEFAULT(FATAL) << "Done Onnx parse";
+       //LOGS_DEFAULT\(FATAL\) << "Done Onnx parse";
       if (fp16_enable_) {
+         //LOGS_DEFAULT\(FATAL\) << fp16_enable_;
         migraphx::quantize_fp16(prog);
       }
 
-      LOGS_DEFAULT(FATAL) << "no input shape";
+       //LOGS_DEFAULT\(FATAL\) << "no input shape";
 
-      prog.compile(t_);
+      //prog.compile(t_);
       auto prog_output_shapes = prog.get_output_shapes();
       for (std::size_t i = 0; i < output_names.size(); ++i) {
         auto out_len = prog_output_shapes[i].lengths();
         options.set_input_parameter_shape(output_names[i], out_len);
       }
-    }
+    }*/
 
     // compile the program
     map_progs_[fused_node.Name()] = prog;
@@ -1096,7 +1103,7 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
       bool& no_input_shape = mgx_state->no_input_shape;
       bool fp16_enable = mgx_state->fp16_enable;
 
-      LOGS_DEFAULT(FATAL) << "No input state" << no_input_shape;
+       //LOGS_DEFAULT\(FATAL\) << "No input state" << no_input_shape;
 
       // mean no program at all, so need to get the input shape info
       // from input data
@@ -1121,7 +1128,7 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
         // migraphx::onnx_options cmp_options;
         if (param_shapes.size() > 0) {
 
-          LOGS_DEFAULT(FATAL) << "Param shapes size nonzero!";
+           //LOGS_DEFAULT\(FATAL\) << "Param shapes size nonzero!";
           for (auto&& name : param_shapes.names()) {
             if (map_input_name_index.count(name) > 0) {
               auto input_tensor = ctx.GetInput(map_input_name_index[name]);
@@ -1138,7 +1145,7 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
               }
 
               if (mgx_lens != ort_lens) {
-                LOGS_DEFAULT(FATAL) << name;
+                 //LOGS_DEFAULT\(FATAL\) << name;
                 cmp_options.set_input_parameter_shape(name, ort_lens);
                 input_shape_match = false;
               }
@@ -1147,16 +1154,18 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
         }
       }
 
+       //LOGS_DEFAULT\(FATAL\) << "Before shape check";
+
       // input shapes are different, needs to re-parse onnx and
       // re-compile the program
       if (!input_shape_match) {
-        LOGS_DEFAULT(FATAL) << "Before Onnx buffer parse";
+         //LOGS_DEFAULT\(FATAL\) << "Before Onnx buffer parse";
         prog = migraphx::parse_onnx_buffer(onnx_string, cmp_options);
         if (fp16_enable) {
           migraphx::quantize_fp16(prog);
         }
 
-        LOGS_DEFAULT(FATAL) << "input shape no match";
+         //LOGS_DEFAULT\(FATAL\) << "input shape no match";
 
         prog.compile(t);
         mgx_state->prog = prog;
@@ -1180,7 +1189,7 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
             auto mgx_s = param_shapes[name];
 
             if (mgx_type != mgx_s.type()) {
-              LOGS_DEFAULT(FATAL) << "MIGraphX: param type mismatch";
+               //LOGS_DEFAULT\(FATAL\) << "MIGraphX: param type mismatch";
             }
             m.add(name, migraphx::argument(param_shapes[name],
                                            const_cast<void*>(input_tensor.GetTensorRawData())));
