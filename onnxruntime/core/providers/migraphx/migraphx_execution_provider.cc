@@ -1013,11 +1013,11 @@ MIGraphXExecutionProvider::GetCapability(const onnxruntime::GraphViewer& graph_v
     result.push_back(ComputeCapability::Create(std::move(sub_graph)));
   } else {  // unsupported_nodes_idx.empty()
     if (dump_model_ops_) {
-      LOGS_DEFAULT(INFO) << "============= Unsupported nodes ====================";
+      LOGS_DEFAULT(WARNING) << "============= Unsupported nodes ====================";
       for (auto idx : unsupported_nodes) {
-        LOGS_DEFAULT(INFO) << graph_viewer.GetNode(idx)->OpType() << std::endl;
+        LOGS_DEFAULT(WARNING) << graph_viewer.GetNode(idx)->OpType() << std::endl;
       }
-      LOGS_DEFAULT(INFO) << "************* Unsupported nodes ********************";
+      LOGS_DEFAULT(WARNING) << "************* Unsupported nodes ********************";
     }
 
     if (unsupported_nodes.size() > 10) {
@@ -1097,9 +1097,9 @@ bool get_input_output_names(const GraphViewer& graph,
 bool load_precompiled_model(migraphx::program& prog, bool load_enable, std::string path) {
   try {
     if (load_enable) {
-      LOGS_DEFAULT(INFO) << "Attempting to load model at:" << path;
+      LOGS_DEFAULT(WARNING) << "Attempting to load model at:" << path;
       prog = migraphx::load(path.c_str());
-      LOGS_DEFAULT(INFO) << "load model : Success";
+      LOGS_DEFAULT(WARNING) << "load model : Success";
       return true;
     } else {
       return false;
@@ -1112,11 +1112,11 @@ bool load_precompiled_model(migraphx::program& prog, bool load_enable, std::stri
 
 void save_compiled_model(migraphx::program& prog, bool save_enable, std::string out_path) {
   if (save_enable) {
-    LOGS_DEFAULT(INFO) << "Model Save at " << out_path << ": Begin" << std::endl;
+    LOGS_DEFAULT(WARNING) << "Model Save at " << out_path << ": Begin" << std::endl;
     migraphx::file_options fo;
     fo.set_file_format("msgpack");
     migraphx::save(prog, out_path.c_str(), fo);
-    LOGS_DEFAULT(INFO) << "Model Save: Complete" << std::endl;
+    LOGS_DEFAULT(WARNING) << "Model Save: Complete" << std::endl;
   }
 }
 
@@ -1124,7 +1124,9 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
                                           std::vector<NodeComputeInfo>& node_compute_funcs) {
   migraphx::onnx_options options;
   bool no_input_shape = false;
+  LOGS_DEFAULT(WARNING) << "Compile Start " << std::endl;
   for (const auto& fused_node_graph : fused_nodes) {
+    LOGS_DEFAULT(WARNING) << "Compile Node Loop Start " << std::endl;
     const GraphViewer& graph_body_viewer = fused_node_graph.filtered_graph;
     const Node& fused_node = fused_node_graph.fused_node;
     // map parameter input name to index
@@ -1156,14 +1158,15 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
     // the input fused_node
     migraphx::program prog;
 
+    LOGS_DEFAULT(WARNING) << "Beginning of Compile" << std::endl;
     if (!no_input_shape) {
       if (!load_precompiled_model(prog, load_compiled_model_, std::string{load_compiled_path_})) {
-        LOGS_DEFAULT(INFO) << "No Input shapes detected quantizing model";
+        LOGS_DEFAULT(WARNING) << "No Input shapes detected quantizing model";
         prog = migraphx::parse_onnx_buffer(onnx_string_buffer, options);
 
         // Read in the calibration data and map it to an migraphx paramater map for the calibration ops
         if (int8_enable_ && int8_calibration_cache_available_) {
-          LOGS_DEFAULT(INFO) << "Quantizing input program to int8" << std::endl;
+          LOGS_DEFAULT(WARNING) << "Quantizing input program to int8" << std::endl;
           migraphx::quantize_int8_options quant_opts;
           migraphx::program_parameters quant_params;
 
@@ -1182,20 +1185,20 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
 
           // perform static quantization on the programs
           migraphx::quantize_int8(prog, t_, quant_opts);
-          LOGS_DEFAULT(INFO) << "Quantizing input program to int8: Complete" << std::endl;
+          LOGS_DEFAULT(WARNING) << "Quantizing input program to int8: Complete" << std::endl;
         }
 
         if (fp16_enable_) {
-          LOGS_DEFAULT(INFO) << "Quantizing input program to fp16" << std::endl;
+          LOGS_DEFAULT(WARNING) << "Quantizing input program to fp16" << std::endl;
           migraphx::quantize_fp16(prog);
-          LOGS_DEFAULT(INFO) << "Quantizing input program to fp16: Complete" << std::endl;
+          LOGS_DEFAULT(WARNING) << "Quantizing input program to fp16: Complete" << std::endl;
         }
 
         migraphx::compile_options co;
         co.set_fast_math(false);
-        LOGS_DEFAULT(INFO) << "Model Compile: Begin" << std::endl;
+        LOGS_DEFAULT(WARNING) << "Model Compile: Begin" << std::endl;
         prog.compile(t_, co);
-        LOGS_DEFAULT(INFO) << "Model Compile: Complete" << std::endl;
+        LOGS_DEFAULT(WARNING) << "Model Compile: Complete" << std::endl;
 
         save_compiled_model(prog, save_compiled_model_, save_compiled_path_);
       }
@@ -1207,6 +1210,8 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
       }
     }
 
+    LOGS_DEFAULT(WARNING) << "Compile Done" << std::endl;
+
     // compile the program
     map_progs_[fused_node.Name()] = prog;
 
@@ -1215,6 +1220,7 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
     map_no_input_shape_[fused_node.Name()] = no_input_shape;
     NodeComputeInfo compute_info;
     compute_info.create_state_func = [=](ComputeContext* context, FunctionState* state) {
+      LOGS_DEFAULT(WARNING) << "Create state function" << std::endl;
       std::unique_ptr<MIGraphXFuncState> p = std::make_unique<MIGraphXFuncState>();
       *p = {context->allocate_func, context->release_func, context->allocator_handle, map_progs_[context->node_name],
             map_onnx_string_[context->node_name], options, t_, map_input_index_[context->node_name], &mgx_mu_,
@@ -1228,10 +1234,12 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
 
     compute_info.release_state_func = [](FunctionState state) {
       if (state)
+        LOGS_DEFAULT(WARNING) << "Release state delete" << std::endl;
         delete static_cast<MIGraphXFuncState*>(state);
     };
 
     compute_info.compute_func = [this](FunctionState state, const OrtApi* api, OrtKernelContext* context) {
+
       Ort::KernelContext ctx(context);
       MIGraphXFuncState* mgx_state = reinterpret_cast<MIGraphXFuncState*>(state);
 
@@ -1246,12 +1254,15 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
       bool int8_enable = mgx_state->int8_enable;
       bool int8_calibration_cache_available = mgx_state->int8_calibration_cache_available;
 
+
+      LOGS_DEFAULT(WARNING) << "Running Compute" << std::endl;
+
       // mean no program at all, so need to get the input shape info
       // from input data
       bool input_shape_match = true;
       migraphx::program_parameter_shapes param_shapes;
       if (no_input_shape) {
-        LOGS_DEFAULT(VERBOSE) << "Missing input shape setting input parameters again" << std::endl;
+        LOGS_DEFAULT(WARNING) << "Missing input shape setting input parameters again" << std::endl;
         for (auto& it : map_input_name_index) {
           auto& name = it.first;
           auto& index = it.second;
@@ -1263,7 +1274,7 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
           input_shape_match = false;
         }
       } else {
-        LOGS_DEFAULT(VERBOSE) << "Assigning inputs, and parameters from compiled model" << std::endl;
+        LOGS_DEFAULT(WARNING) << "Assigning inputs, and parameters from compiled model" << std::endl;
         param_shapes = prog.get_parameter_shapes();
         auto prog_output_shapes = prog.get_output_shapes();
 
@@ -1287,6 +1298,7 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
 
               if (mgx_lens != ort_lens) {
                 cmp_options.set_input_parameter_shape(name, ort_lens);
+                LOGS_DEFAULT(WARNING) << "mgx_lens != ort_lens" << std::endl;
                 input_shape_match = false;
               }
             }
@@ -1297,14 +1309,15 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
       // input shapes are different, needs to re-parse onnx and
       // re-compile the program
       if (!input_shape_match) {
+        LOGS_DEFAULT(WARNING) << "No Input shapes mismatch detected. Loading" << std::endl;
         if (!load_precompiled_model(prog, load_compiled_model_, std::string{load_compiled_path_})) {
-          LOGS_DEFAULT(VERBOSE) << "No Input shapes mismatch detected. Recompiling" << std::endl;
+          LOGS_DEFAULT(WARNING) << "No Input shapes mismatch detected. Recompiling" << std::endl;
           cmp_options.set_external_data_path(model_path_.parent_path().string());
           prog = migraphx::parse_onnx_buffer(onnx_string, cmp_options);
 
           // Read in the calibration data and map it to an migraphx paramater map for the calibration ops
           if (int8_enable && int8_calibration_cache_available) {
-            LOGS_DEFAULT(INFO) << "Quantize Int8: Begin" << std::endl;
+            LOGS_DEFAULT(WARNING) << "Quantize Int8: Begin" << std::endl;
             migraphx::quantize_int8_options quant_opts;
             migraphx::program_parameters quant_params;
 
@@ -1342,16 +1355,16 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
 
             // perform static quantization on the programs
             migraphx::quantize_int8(prog, t, quant_opts);
-            LOGS_DEFAULT(INFO) << "Quantize Int8: Completed" << std::endl;
+            LOGS_DEFAULT(WARNING) << "Quantize Int8: Completed" << std::endl;
           }
 
           if (fp16_enable) {
-            LOGS_DEFAULT(INFO) << "Quantize fp16: Begin" << std::endl;
+            LOGS_DEFAULT(WARNING) << "Quantize fp16: Begin" << std::endl;
             migraphx::quantize_fp16(prog);
-            LOGS_DEFAULT(INFO) << "Quantize fp16: Completed" << std::endl;
+            LOGS_DEFAULT(WARNING) << "Quantize fp16: Completed" << std::endl;
           }
 
-          LOGS_DEFAULT(INFO) << "Model Compile: Begin" << std::endl;
+          LOGS_DEFAULT(WARNING) << "Model Compile: Begin" << std::endl;
           migraphx::compile_options co;
           co.set_fast_math(false);
           prog.compile(t, co);
@@ -1370,7 +1383,7 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
       if (param_shapes.size() > 0) {
         for (auto&& name : param_shapes.names()) {
           if (map_input_name_index.count(name) > 0) {
-            LOGS_DEFAULT(INFO) << "Setting parameters for:" << name << std::endl;
+            LOGS_DEFAULT(WARNING) << "Setting parameters for:" << name << std::endl;
             auto input_tensor = ctx.GetInput(map_input_name_index[name]);
             auto tensor_info = input_tensor.GetTensorTypeAndShapeInfo();
             const auto tensor_shape = tensor_info.GetShape();
@@ -1384,7 +1397,7 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
               LOGS_DEFAULT(FATAL) << "MIGraphX: param type mismatch";
             }
 
-            LOGS_DEFAULT(INFO) << "Writing Raw tensor data " << std::endl;
+            LOGS_DEFAULT(WARNING) << "Writing Raw tensor data " << std::endl;
             m.add(name, migraphx::argument(param_shapes[name],
                                            const_cast<void*>(input_tensor.GetTensorRawData())));
           }
@@ -1445,9 +1458,13 @@ Status MIGraphXExecutionProvider::Compile(const std::vector<FusedNodeAndGraph>& 
 
       return Status::OK();
     };
+
+    LOGS_DEFAULT(WARNING) << "Push compute info " << std::endl;
     node_compute_funcs.push_back(compute_info);
+    LOGS_DEFAULT(WARNING) << "Push compute info Done" << std::endl;
   }
 
+  LOGS_DEFAULT(WARNING) << "Compile Done" << std::endl;
   return Status::OK();
 }
 
@@ -1464,17 +1481,21 @@ OrtDevice MIGraphXExecutionProvider::GetOrtDeviceByMemType(OrtMemType mem_type) 
 }
 
 Status MIGraphXExecutionProvider::Sync() const {
+  LOGS_DEFAULT(WARNING) << "=====RUN SYNC START=======" << std::endl;
   HIP_CALL_THROW(hipStreamSynchronize(static_cast<hipStream_t>(nullptr)));
 
   auto status = hipStreamQuery(stream_);
   if (status != hipSuccess) {
     return Status(onnxruntime::common::ONNXRUNTIME, onnxruntime::common::EP_FAIL);
   }
+
+  LOGS_DEFAULT(WARNING) << "=====RUN SYNC OK=======" << std::endl;
   return Status::OK();
 }
 
 Status MIGraphXExecutionProvider::OnRunStart(const onnxruntime::RunOptions& /*run_options*/) {
   return Status::OK();
+  LOGS_DEFAULT(WARNING) << "--------RUN START--------" << std::endl;
 }
 
 Status MIGraphXExecutionProvider::OnRunEnd(bool /*sync_stream*/, const onnxruntime::RunOptions& /*run_options*/) {
@@ -1483,6 +1504,7 @@ Status MIGraphXExecutionProvider::OnRunEnd(bool /*sync_stream*/, const onnxrunti
   if (status != hipSuccess) {
     HIP_CALL_THROW(hipStreamSynchronize(stream_));
   }
+  LOGS_DEFAULT(WARNING) << "+++++++RUN END+++++++++" << std::endl;
   return Status::OK();
 }
 
