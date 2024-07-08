@@ -21,8 +21,8 @@
   # Add search paths for default rocm installation
   list(APPEND CMAKE_PREFIX_PATH /opt/rocm/hcc /opt/rocm/hip /opt/rocm)
 
-  find_package(hip)
-  find_package(migraphx PATHS ${AMD_MIGRAPHX_HOME})
+  # Suppress the warning about the small capitals of the package name - Enable when support to CMake 3.27.0 is used
+  # cmake_policy(SET CMP0144 NEW)
 
   find_package(miopen)
   find_package(rocblas)
