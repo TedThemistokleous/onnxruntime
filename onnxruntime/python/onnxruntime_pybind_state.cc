@@ -1492,7 +1492,7 @@ void addGlobalMethods(py::module& m) {
     ORT_UNUSED_PARAMETER(algo);
     ORT_THROW("set_cudnn_conv_algo_search is not supported in ROCM");
 #else
-        cudnn_conv_algo_search = algo;
+    cudnn_conv_algo_search = algo;
 #endif
   });
   // TODO remove deprecated global config
